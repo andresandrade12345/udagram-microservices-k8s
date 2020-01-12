@@ -14,6 +14,12 @@ before_install:
   - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
   - chmod +x ./kubectl
   - sudo mv ./kubectl /usr/local/bin/kubectl
+  - mkdir ${HOME}/.kube
+  - cp ./udacity-c3-deployment/k8s/udacity-udagram-kubeconfig ${HOME}/.kube/config
+  - kubectl config set clusters.udacity-udagram.certificate-authority-data "$KUBE_CA_CERT"
+  - kubectl config set clusters.udacity-udagram.server "$KUBE_ENDPOINT"
+  - kubectl config set users.kubernetes-admin.client-certificate-data "$KUBE_ADMIN_CERT"
+  - kubectl config set users.kubernetes-admin.client-key-data "$KUBE_ADMIN_KEY"
   - docker login -u "${DOCKER_USERNAME}" -p "${DOCKER_PASSWORD}"
 
 install:
@@ -21,16 +27,7 @@ install:
 
 after-success:
   - docker-compose -f udacity-c3-deployment/docker/docker-compose-build.yaml push
-  - sed -i -e 's|KUBE_CA_CERT|'"${KUBE_CA_CERT}"'|g' kubeconfig
-  - sed -i -e 's|KUBE_ENDPOINT|'"${KUBE_ENDPOINT}"'|g' kubeconfig
-  - sed -i -e 's|KUBE_ADMIN_CERT|'"${KUBE_ADMIN_CERT}"'|g' kubeconfig
-  - sed -i -e 's|KUBE_ADMIN_KEY|'"${KUBE_ADMIN_KEY}"'|g' kubeconfig
-  - sed -i -e 's|KUBE_USERNAME|'"${KUBE_USERNAME}"'|g' kubeconfig
-  - kubectl apply -f udacity-c3-deployment/docker/reverseproxy-deployment.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/backend-feed-deployment.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/backend-user-deployment.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/frontend-deployment.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/reverseproxy-service.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/frontend-service.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/backend-feed-service.yaml
-  - kubectl apply -f udacity-c3-deployment/docker/backend-user-service.yaml
+  - kubectl apply -f udacity-c3-deployment/k8s/reverseproxy-service.yaml
+  - kubectl apply -f udacity-c3-deployment/k8s/frontend-service.yaml
+  - kubectl apply -f udacity-c3-deployment/k8s/backend-feed-service.yaml
+  - kubectl apply -f udacity-c3-deployment/k8s/backend-user-service.yaml
