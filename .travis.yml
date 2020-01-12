@@ -1,0 +1,43 @@
+language: minimal
+
+services: docker
+
+env:
+  - DOCKER_COMPOSE_VERSION=1.23.2
+
+before_install:
+  - docker -v && docker-compose -v
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+  - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+  - chmod +x ./kubectl
+  - sudo mv ./kubectl /usr/local/bin/kubectl
+  - docker login -u "${DOCKER_USERNAME}" -p "${DOCKER_PASSWORD}"
+
+install:
+  - docker-compose -f udacity-c3-deployment/docker/docker-compose-build.yaml build --parallel
+
+after-success:
+  - docker-compose -f udacity-c3-deployment/docker/docker-compose-build.yaml push
+  - sed -i -e 's|KUBE_CA_CERT|'"${KUBE_CA_CERT}"'|g' kubeconfig
+  - sed -i -e 's|KUBE_ENDPOINT|'"${KUBE_ENDPOINT}"'|g' kubeconfig
+  - sed -i -e 's|KUBE_ADMIN_CERT|'"${KUBE_ADMIN_CERT}"'|g' kubeconfig
+  - sed -i -e 's|KUBE_ADMIN_KEY|'"${KUBE_ADMIN_KEY}"'|g' kubeconfig
+  - sed -i -e 's|KUBE_USERNAME|'"${KUBE_USERNAME}"'|g' kubeconfig
+  - docker run -v ${TRAVIS_BUILD_DIR}:/kube kubectl kubectl --kubeconfig /kube/kubeconfig set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_USERNAME}/${DOCKER_REVERSE_PROXY_IMAGE_NAME}:$TRAVIS_BUILD_ID
+  - docker run -v ${TRAVIS_BUILD_DIR}:/kube kubectl kubectl --kubeconfig /kube/kubeconfig set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_USERNAME}/${DOCKER_BACKEND_FEED_IMAGE_NAME}:$TRAVIS_BUILD_ID
+  - docker run -v ${TRAVIS_BUILD_DIR}:/kube kubectl kubectl --kubeconfig /kube/kubeconfig set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_USERNAME}/${DOCKER_BACKEND_USER_IMAGE_NAME}:$TRAVIS_BUILD_ID
+  - docker run -v ${TRAVIS_BUILD_DIR}:/kube kubectl kubectl --kubeconfig /kube/kubeconfig set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_USERNAME}/${DOCKER_FRONTEND_IMAGE_NAME}:$TRAVIS_BUILD_ID
+  - kubectl apply -f udacity-c3-deployment/docker/aws-secret.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/env-secret.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/env-configmap.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/reverseproxy-deployment.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/backend-feed-deployment.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/backend-user-deployment.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/frontend-deployment.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/reverseproxy-service.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/frontend-service.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/backend-feed-service.yaml
+  - kubectl apply -f udacity-c3-deployment/docker/backend-user-service.yaml

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+data:
+  AWS_BUCKET: ___REPLACE___
+  AWS_PROFILE: ___REPLACE___
+  AWS_REGION: ___REPLACE___
+  POSTGRESS_DB: ___REPLACE___
+  POSTGRESS_HOST: ___REPLACE___
+  URL: http://localhost:8100
+metadata:
+  name: env-config
+  
